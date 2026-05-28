@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Solara OS — Fluido y con especificaciones reales</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif;
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            --glass-bg: rgba(20, 20, 25, 0.55);
+            --glass-border: rgba(255, 255, 255, 0.25);
+            --dock-bg: rgba(30, 30, 35, 0.65);
+            --text-primary: #ffffff;
+            --text-secondary: #e0e0e5;
+            --icon-size: 74px;
+            --icon-radius: 24px;
+            --transition-motion: 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        body.light {
+            --glass-bg: rgba(245, 245, 250, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --dock-bg: rgba(240, 240, 245, 0.7);
+            --text-primary: #1c1c1e;
+            --text-secondary: #6c6c70;
+        }
+
+        @media (min-width: 1024px) {
+            body { --icon-size: 88px; --icon-radius: 26px; }
+            .icons-grid { gap: 32px 28px; max-width: 720px; }
+            .dock-icon { width: 72px; height: 72px; font-size: 36px; }
+            .time-large { font-size: 120px; }
+            .date-large { font-size: 32px; }
+        }
+
+        .wallpaper-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #ffb347 0%, #ff6b6b 40%, #5f2c82 100%);
+            background-size: cover;
+            transition: background-image 0.5s ease;
+            z-index: 0;
+        }
+
+        .glass-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(28px);
+            background: var(--glass-bg);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: opacity var(--transition-motion), visibility var(--transition-motion);
+            opacity: 1;
+            visibility: visible;
+            z-index: 10;
+            overflow: hidden;
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Lock Screen */
+        .lock-container {
+            position: relative;
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: white;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            backdrop-filter: blur(12px);
+        }
+        .time-large { font-weight: 640; letter-spacing: -3px; margin-bottom: 12px; }
+        .date-large { font-weight: 500; opacity: 0.95; }
+        .swipe-area {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 12px;
+            cursor: grab;
+        }
+        .swipe-indicator { background: rgba(255,255,255,0.5); backdrop-filter: blur(12px); width: 140px; height: 5px; border-radius: 40px; }
+        .swipe-text { font-size: 15px; font-weight: 500; background: rgba(0,0,0,0.4); padding: 8px 24px; border-radius: 60px; backdrop-filter: blur(15px); }
+        .unlock-button-pc {
+            margin-top: 30px;
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(20px);
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.4);
+            transition: 0.2s;
+        }
+        .unlock-button-pc:active { transform: scale(0.96); }
+
+        /* Login */
+        .login-panel {
+            position: relative;
+            z-index: 3;
+            background: var(--glass-bg);
+            backdrop-filter: blur(40px);
+            border-radius: 56px;
+            padding: 36px 30px;
+            width: 340px;
+            margin: auto;
+            top: 28%;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 30px 55px rgba(0,0,0,0.35);
+            color: var(--text-primary);
+        }
+        .login-panel h2 { text-align: center; font-weight: 620; font-size: 28px; margin-bottom: 28px; }
+        .input-group { margin: 18px 0; position: relative; }
+        .input-group i { position: absolute; left: 18px; top: 18px; color: #ff9f4a; font-size: 18px; }
+        .login-panel input {
+            width: 100%;
+            padding: 16px 20px 16px 48px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(12px);
+            border: 0.5px solid rgba(255,255,255,0.4);
+            border-radius: 48px;
+            font-size: 17px;
+            color: var(--text-primary);
+        }
+        body.light .login-panel input { background: rgba(255, 255, 255, 0.6); color: #000; }
+        .login-panel input:focus { outline: none; background: rgba(255, 255, 255, 0.35); border-color: #ff9f4a; box-shadow: 0 0 0 3px rgba(255, 159, 74, 0.25); }
+        .login-panel button { width: 100%; padding: 16px; border-radius: 48px; background: #ff8c42; color: white; font-weight: 600; border: none; margin-top: 16px; cursor: pointer; }
+        .error-msg { font-size: 14px; margin-top: 12px; text-align: center; color: #ff5e5e; }
+
+        /* Home */
+        .home-container {
+            position: relative;
+            z-index: 5;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 58px 16px 28px;
+        }
+        .status-bar {
+            position: absolute;
+            top: 12px;
+            left: 24px;
+            right: 24px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 590;
+            font-size: 16px;
+            color: var(--text-primary);
+            z-index: 12;
+            pointer-events: none;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        .control-center-trigger {
+            pointer-events: auto;
+            cursor: pointer;
+            padding: 6px 14px;
+            border-radius: 38px;
+            background: rgba(0,0,0,0.35);
+            backdrop-filter: blur(18px);
+            font-size: 14px;
+        }
+        .pages-container { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; flex: 1; scrollbar-width: none; position: relative; }
+        .pages-container::-webkit-scrollbar { display: none; }
+        .page { flex: 0 0 100%; scroll-snap-align: start; display: flex; justify-content: center; align-items: flex-start; padding-top: 20px; position: relative; }
+        .icons-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(var(--icon-size), 86px));
+            gap: 24px 20px;
+            justify-content: center;
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .app-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: transform 0.18s ease;
+            position: relative;
+        }
+        .app-icon:active { transform: scale(0.94); }
+        .icon-bg {
+            width: var(--icon-size);
+            height: var(--icon-size);
+            border-radius: var(--icon-radius);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+        .app-icon[data-id="files"] .icon-bg { background: linear-gradient(145deg, #4c8bf5, #2b6ed7); color: white; }
+        .app-icon[data-id="notes"] .icon-bg { background: linear-gradient(145deg, #ffc107, #ff9800); color: #2d2d2d; }
+        .app-icon[data-id="gallery"] .icon-bg { background: linear-gradient(145deg, #ff6b81, #ff4757); color: white; }
+        .app-icon[data-id="calc"] .icon-bg { background: linear-gradient(145deg, #fa8231, #e67e22); color: white; }
+        .app-icon[data-id="weather"] .icon-bg { background: linear-gradient(145deg, #45aaf2, #2d98da); color: white; }
+        .app-icon[data-id="maps"] .icon-bg { background: linear-gradient(145deg, #20bf6b, #0fb9b1); color: white; }
+        .app-icon[data-id="music"] .icon-bg { background: linear-gradient(145deg, #e84393, #fd79a8); color: white; }
+        .app-icon[data-id="settings"] .icon-bg { background: linear-gradient(145deg, #a5b1c2, #778ca3); color: #2d3436; }
+        .app-icon[data-id="terminal"] .icon-bg { background: linear-gradient(145deg, #2d2d2d, #1e1e1e); color: #0f0; }
+        .app-icon[data-id="contacts"] .icon-bg { background: linear-gradient(145deg, #2ecc71, #27ae60); color: white; }
+        .app-icon[data-id="camera"] .icon-bg { background: linear-gradient(145deg, #bdc3c7, #95a5a6); color: #2c3e50; }
+        .app-icon[data-id="clock"] .icon-bg { background: linear-gradient(145deg, #1e3799, #0c2461); color: white; }
+        .app-name { font-size: 11.5px; font-weight: 510; color: var(--text-primary); text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+        .dock { background: var(--dock-bg); backdrop-filter: blur(40px); border-radius: 52px; padding: 10px 22px; margin: 0 auto 18px auto; width: fit-content; display: flex; gap: 26px; border: 0.6px solid rgba(255,255,255,0.35); }
+        .dock-icon { width: 64px; height: 64px; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 32px; cursor: pointer; background: rgba(255, 255, 255, 0.8); box-shadow: 0 6px 12px rgba(0,0,0,0.2); transition: transform 0.1s; }
+        .dock-icon:active { transform: scale(0.92); }
+
+        /* Modal apps */
+        .app-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(40px); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.28s ease; }
+        .app-modal.active { opacity: 1; visibility: visible; }
+        .app-card { width: 90%; max-width: 540px; height: 80%; max-height: 720px; background: var(--glass-bg); backdrop-filter: blur(60px); border-radius: 56px; border: 1px solid var(--glass-border); display: flex; flex-direction: column; overflow: hidden; transform: scale(0.94); transition: transform 0.3s; }
+        .app-modal.active .app-card { transform: scale(1); }
+        .app-header { padding: 20px 26px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid rgba(255,255,255,0.3); font-weight: 620; font-size: 20px; color: var(--text-primary); }
+        .close-app { background: rgba(120,120,128,0.4); border-radius: 50px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(8px); }
+        .app-content { flex: 1; overflow-y: auto; padding: 22px; color: var(--text-primary); }
+
+        /* Control Center */
+        .control-center {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 310px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(55px);
+            border-bottom-left-radius: 48px;
+            padding: 28px 22px;
+            z-index: 300;
+            transform: translateY(-100%);
+            transition: transform 0.34s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            border-left: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+            color: var(--text-primary);
+        }
+        .control-center.open { transform: translateY(0%); }
+        .control-row { margin: 22px 0; display: flex; justify-content: space-between; align-items: center; }
+        input[type="range"] { width: 65%; accent-color: #ff8c42; }
+        .btn-secondary { background: rgba(100,100,110,0.5); backdrop-filter: blur(10px); padding: 8px 18px; border-radius: 36px; cursor: pointer; }
+        .close-cc { margin-top: 20px; text-align: center; background: rgba(255,80,80,0.6); border-radius: 40px; padding: 8px; cursor: pointer; }
+
+        /* Estilos apps */
+        .grid-gallery { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+        .note-item, .file-item { background: rgba(255,255,255,0.2); backdrop-filter: blur(12px); border-radius: 28px; padding: 14px; margin: 12px 0; }
+        button { background: #ff8c42; border: none; padding: 12px 20px; border-radius: 44px; color: white; font-weight: 500; cursor: pointer; margin: 4px; }
+        textarea { background: rgba(255,255,255,0.25); backdrop-filter: blur(12px); border-radius: 28px; padding: 14px; width: 100%; border: none; color: var(--text-primary); }
+        .offline-msg { text-align: center; padding: 40px; background: rgba(0,0,0,0.6); border-radius: 28px; }
+        .specs-list { list-style: none; padding: 0; }
+        .specs-list li { background: rgba(255,255,255,0.15); margin: 10px 0; padding: 12px; border-radius: 24px; display: flex; align-items: center; gap: 12px; }
+    </style>
+</head>
+<body>
+<div class="wallpaper-layer" id="wallpaperLayer"></div>
+<div class="glass-overlay" id="glassOverlay"></div>
+
+<!-- Lock Screen -->
+<div id="lockScreen" class="screen">
+    <div class="lock-container">
+        <div class="time-large" id="lockTime">--:--</div>
+        <div class="date-large" id="lockDate"></div>
+        <div class="swipe-area" id="swipeToUnlock">
+            <div class="swipe-indicator"></div>
+            <div class="swipe-text">Desliza hacia arriba</div>
+        </div>
+        <div class="unlock-button-pc" id="pcUnlockBtn">Entrar</div>
+    </div>
+</div>
+
+<!-- Login -->
+<div id="loginScreen" class="screen hidden">
+    <div class="login-panel">
+        <h2><i class="fas fa-sun"></i> Solara OS</h2>
+        <div class="input-group"><i class="fas fa-user"></i><input type="text" id="username" placeholder="Usuario" value="Godeanos"></div>
+        <div class="input-group"><i class="fas fa-key"></i><input type="password" id="password" placeholder="Contraseña" value="1234321"></div>
+        <button id="doLogin">Acceder <i class="fas fa-arrow-right"></i></button>
+        <div id="loginError" class="error-msg"></div>
+    </div>
+</div>
+
+<!-- Home -->
+<div id="homeScreen" class="screen hidden">
+    <div class="status-bar"><span id="homeTime">--:--</span><span class="control-center-trigger" id="ccTrigger"><i class="fas fa-bars"></i> Centro</span></div>
+    <div class="home-container"><div class="pages-container" id="pagesContainer"></div><div class="dock" id="dockContainer"></div></div>
+</div>
+
+<!-- Control Center -->
+<div id="controlCenter" class="control-center">
+    <h4><i class="fas fa-bolt"></i> Controles</h4>
+    <div class="control-row"><i class="fas fa-volume-up"></i> Volumen <input type="range" id="volumeSlider" min="0" max="100" value="55"></div>
+    <div class="control-row"><i class="fas fa-sun"></i> Brillo <input type="range" id="brightSlider" min="0" max="100" value="85"></div>
+    <div class="control-row"><i class="fas fa-wifi"></i> WiFi <span id="wifiToggle" class="btn-secondary">Activar</span></div>
+    <div class="control-row"><i class="fas fa-moon"></i> Modo oscuro <span id="darkModeToggle" class="btn-secondary">Toggle</span></div>
+    <div class="control-row"><i class="fas fa-image"></i> Fondo <input type="file" id="uploadWallpaper" accept="image/*"></div>
+    <div class="control-row"><i class="fas fa-lock"></i> Bloquear <span id="lockDevice" class="btn-secondary">Bloquear</span></div>
+    <div class="close-cc" id="closeCCBtn"><i class="fas fa-times"></i> Cerrar</div>
+</div>
+
+<!-- Modal Apps -->
+<div id="appModal" class="app-modal"><div class="app-card"><div class="app-header"><span id="appTitle">App</span><span class="close-app" id="closeAppBtn"><i class="fas fa-times"></i></span></div><div class="app-content" id="appContent"></div></div></div>
+
+<script>
+    // ---------- APPS ----------
+    const APPS = [
+        { id: "files", name: "Archivos", icon: "fas fa-folder-open" },
+        { id: "notes", name: "Notas", icon: "fas fa-pen-fancy" },
+        { id: "gallery", name: "Galería", icon: "fas fa-images" },
+        { id: "calc", name: "Calculadora", icon: "fas fa-calculator" },
+        { id: "weather", name: "Clima", icon: "fas fa-cloud-sun-rain" },
+        { id: "maps", name: "Mapas", icon: "fas fa-map" },
+        { id: "music", name: "Música", icon: "fas fa-headphones" },
+        { id: "settings", name: "Ajustes", icon: "fas fa-sliders-h" },
+        { id: "terminal", name: "Terminal", icon: "fas fa-terminal" },
+        { id: "contacts", name: "Contactos", icon: "fas fa-address-card" },
+        { id: "camera", name: "Cámara", icon: "fas fa-camera-retro" },
+        { id: "clock", name: "Reloj", icon: "fas fa-clock" }
+    ];
+    let iconOrder = APPS.map(a => a.id);
+    let settings = { darkMode: false, blurStrength: 30, iconSize: 74, wallpaper: "default", wifiEnabled: true };
+    let notesData = [{ id: "1", title: "Bienvenida", content: "Solara OS sin arrastre, solo clics" }];
+    let filesData = [{ name: "documento.pdf", content: "demo" }];
+    let galleryImages = [];
+
+    // DOM
+    const lockScreen = document.getElementById('lockScreen');
+    const loginScreen = document.getElementById('loginScreen');
+    const homeScreen = document.getElementById('homeScreen');
+    const wallpaperLayer = document.getElementById('wallpaperLayer');
+    const pagesContainer = document.getElementById('pagesContainer');
+    const dockContainer = document.getElementById('dockContainer');
+    const appModal = document.getElementById('appModal');
+    const appContent = document.getElementById('appContent');
+    const appTitleSpan = document.getElementById('appTitle');
+    const closeAppBtn = document.getElementById('closeAppBtn');
+    const controlCenterDiv = document.getElementById('controlCenter');
+    const ccTrigger = document.getElementById('ccTrigger');
+    const darkModeToggleSpan = document.getElementById('darkModeToggle');
+    const lockDeviceSpan = document.getElementById('lockDevice');
+    const wifiToggleSpan = document.getElementById('wifiToggle');
+    const brightnessSlider = document.getElementById('brightSlider');
+    const glassOverlay = document.getElementById('glassOverlay');
+    const closeCCBtn = document.getElementById('closeCCBtn');
+    const pcUnlockBtn = document.getElementById('pcUnlockBtn');
+
+    let wifiEnabled = true;
+    function isOnline() { return wifiEnabled; }
+    function updateWifiUI() {
+        wifiToggleSpan.innerText = wifiEnabled ? "Conectado" : "Desactivado";
+        wifiToggleSpan.style.background = wifiEnabled ? "rgba(0,200,0,0.5)" : "rgba(200,0,0,0.5)";
+    }
+    function closeControlCenter() { controlCenterDiv.classList.remove('open'); }
+    function toggleControlCenter() { controlCenterDiv.classList.toggle('open'); }
+    ccTrigger.addEventListener('click', toggleControlCenter);
+    closeCCBtn.addEventListener('click', closeControlCenter);
+    document.addEventListener('click', function(e) {
+        if (controlCenterDiv.classList.contains('open') && !controlCenterDiv.contains(e.target) && e.target !== ccTrigger && !ccTrigger.contains(e.target)) {
+            closeControlCenter();
+        }
+    });
+
+    function saveState() {
+        localStorage.setItem('solara_settings', JSON.stringify(settings));
+        localStorage.setItem('solara_notes', JSON.stringify(notesData));
+        localStorage.setItem('solara_files', JSON.stringify(filesData));
+        localStorage.setItem('solara_gallery', JSON.stringify(galleryImages));
+        localStorage.setItem('solara_iconOrder', JSON.stringify(iconOrder));
+        localStorage.setItem('solara_wifi', wifiEnabled);
+    }
+    function loadState() {
+        const savedSet = localStorage.getItem('solara_settings'); if(savedSet) settings = JSON.parse(savedSet);
+        const savedNotes = localStorage.getItem('solara_notes'); if(savedNotes) notesData = JSON.parse(savedNotes);
+        const savedFiles = localStorage.getItem('solara_files'); if(savedFiles) filesData = JSON.parse(savedFiles);
+        const savedGal = localStorage.getItem('solara_gallery'); if(savedGal) galleryImages = JSON.parse(savedGal);
+        const savedOrder = localStorage.getItem('solara_iconOrder'); if(savedOrder) iconOrder = JSON.parse(savedOrder);
+        const savedWifi = localStorage.getItem('solara_wifi'); if(savedWifi !== null) wifiEnabled = savedWifi === 'true';
+        applySettings();
+        updateWifiUI();
+    }
+    function applySettings() {
+        document.body.classList.toggle('dark', settings.darkMode);
+        document.body.classList.toggle('light', !settings.darkMode);
+        document.documentElement.style.setProperty('--icon-size', settings.iconSize + 'px');
+        if(settings.wallpaper && settings.wallpaper !== 'default') wallpaperLayer.style.backgroundImage = `url(${settings.wallpaper})`;
+        else wallpaperLayer.style.backgroundImage = "linear-gradient(145deg, #ffb347 0%, #ff6b6b 40%, #5f2c82 100%)";
+        glassOverlay.style.backgroundColor = settings.darkMode ? 'rgba(20,20,28,0.55)' : 'rgba(250,250,255,0.45)';
+    }
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+        if(document.getElementById('lockTime')) document.getElementById('lockTime').innerText = timeStr;
+        if(document.getElementById('lockDate')) document.getElementById('lockDate').innerText = dateStr;
+        if(document.getElementById('homeTime')) document.getElementById('homeTime').innerText = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function renderHome() {
+        const sortedApps = iconOrder.map(id => APPS.find(a => a.id === id)).filter(a=>a);
+        const appsPerPage = 8;
+        const pages = [];
+        for(let i=0;i<sortedApps.length;i+=appsPerPage) pages.push(sortedApps.slice(i,i+appsPerPage));
+        pagesContainer.innerHTML = '';
+        pages.forEach(pageApps => {
+            const pageDiv = document.createElement('div'); pageDiv.className = 'page';
+            const grid = document.createElement('div'); grid.className = 'icons-grid';
+            pageApps.forEach(app => {
+                const iconDiv = document.createElement('div'); iconDiv.className = 'app-icon';
+                iconDiv.setAttribute('data-id', app.id);
+                iconDiv.innerHTML = `<div class="icon-bg"><i class="${app.icon}" style="font-size: 36px;"></i></div><span class="app-name">${app.name}</span>`;
+                iconDiv.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openApp(app.id);
+                });
+                grid.appendChild(iconDiv);
+            });
+            pageDiv.appendChild(grid); pagesContainer.appendChild(pageDiv);
+        });
+        const dockApps = sortedApps.slice(0,4);
+        dockContainer.innerHTML = '';
+        dockApps.forEach(app => {
+            const dockItem = document.createElement('div'); dockItem.className = 'dock-icon';
+            dockItem.style.background = settings.darkMode ? `linear-gradient(145deg, rgba(55,55,65,0.9), rgba(40,40,48,0.9))` : `linear-gradient(145deg, rgba(255,255,255,0.9), rgba(220,220,230,0.8))`;
+            dockItem.innerHTML = `<i class="${app.icon}" style="font-size: 30px;"></i>`;
+            dockItem.addEventListener('click', () => openApp(app.id));
+            dockContainer.appendChild(dockItem);
+        });
+    }
+
+    function openApp(appId) { 
+        const appDef = APPS.find(a=>a.id===appId); 
+        if(!appDef) return; 
+        appTitleSpan.innerHTML = `<i class="${appDef.icon}"></i> ${appDef.name}`; 
+        renderAppContent(appId); 
+        appModal.classList.add('active'); 
+    }
+    function closeAppModal() { appModal.classList.remove('active'); }
+    closeAppBtn.addEventListener('click', closeAppModal);
+    appModal.addEventListener('click', (e) => { if(e.target === appModal) closeAppModal(); });
+
+    // Obtener especificaciones reales del dispositivo
+    async function getDeviceSpecs() {
+        const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'No detectable (API no soportada)';
+        const cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} núcleos` : 'No detectable';
+        let storageInfo = 'No se pudo calcular';
+        try {
+            if (navigator.storage && navigator.storage.estimate) {
+                const estimate = await navigator.storage.estimate();
+                const used = (estimate.usage / (1024**3)).toFixed(2);
+                const total = (estimate.quota / (1024**3)).toFixed(2);
+                storageInfo = `${used} GB usado de ${total} GB disponible (estimado)`;
+            } else {
+                storageInfo = 'API Storage no disponible';
+            }
+        } catch(e) { storageInfo = 'Error al leer almacenamiento'; }
+        let ip = 'No disponible';
+        try {
+            const res = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+            ip = data.ip;
+        } catch(e) { ip = 'Error al obtener IP (puede ser por red local o bloqueo)'; }
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        const networkType = connection ? connection.effectiveType : 'No detectable';
+        const platform = navigator.platform;
+        const userAgent = navigator.userAgent;
+        const vendor = navigator.vendor || 'No disponible';
+        const language = navigator.language;
+        return { ram, cores, storageInfo, ip, networkType, platform, userAgent, vendor, language };
+    }
+
+    async function renderAboutDevice() {
+        const specs = await getDeviceSpecs();
+        appContent.innerHTML = `
+            <h3><i class="fas fa-info-circle"></i> Acerca del dispositivo</h3>
+            <ul class="specs-list">
+                <li><i class="fas fa-microchip"></i> <strong>Procesador / núcleos:</strong> ${specs.cores}</li>
+                <li><i class="fas fa-memory"></i> <strong>RAM total:</strong> ${specs.ram}</li>
+                <li><i class="fas fa-hdd"></i> <strong>Almacenamiento (estimado):</strong> ${specs.storageInfo}</li>
+                <li><i class="fas fa-globe"></i> <strong>IP pública:</strong> ${specs.ip}</li>
+                <li><i class="fas fa-wifi"></i> <strong>Tipo de red (estimado):</strong> ${specs.networkType}</li>
+                <li><i class="fas fa-mobile-alt"></i> <strong>Plataforma:</strong> ${specs.platform}</li>
+                <li><i class="fas fa-building"></i> <strong>Vendedor del navegador:</strong> ${specs.vendor}</li>
+                <li><i class="fas fa-language"></i> <strong>Idioma:</strong> ${specs.language}</li>
+            </ul>
+            <hr style="margin:20px 0; opacity:0.3;">
+            <p><i class="fab fa-github"></i> Solara OS v2.0 | Datos leídos en tiempo real desde este dispositivo</p>
+            <p><small>La RAM y almacenamiento dependen de las APIs del navegador. Pueden no ser exactas al 100% pero reflejan valores reales del sistema.</small></p>
+        `;
+    }
+
+    function renderAppContent(id) {
+        if(id === 'settings') {
+            appContent.innerHTML = `
+                <div>
+                    <label><i class="fas fa-expand-alt"></i> Tamaño icono: <input type="range" id="sizeIconRange" min="60" max="90" value="${settings.iconSize}"></label>
+                    <label><i class="fas fa-tint"></i> Intensidad blur: <input type="range" id="blurRange" min="10" max="45" value="${settings.blurStrength}"></label>
+                    <button id="resetOrder"><i class="fas fa-sync-alt"></i> Restaurar orden original de iconos</button>
+                    <hr style="margin: 20px 0; opacity:0.3;">
+                    <button id="aboutDeviceBtn"><i class="fas fa-info-circle"></i> Acerca del dispositivo</button>
+                    <div id="aboutDeviceContainer" style="margin-top: 16px;"></div>
+                </div>
+            `;
+            document.getElementById('sizeIconRange')?.addEventListener('input',e=>{settings.iconSize=e.target.value;applySettings();saveState();renderHome();});
+            document.getElementById('blurRange')?.addEventListener('input',e=>{settings.blurStrength=e.target.value;applySettings();saveState();});
+            document.getElementById('resetOrder')?.addEventListener('click',()=>{iconOrder=APPS.map(a=>a.id);saveState();renderHome();});
+            const aboutBtn = document.getElementById('aboutDeviceBtn');
+            const aboutContainer = document.getElementById('aboutDeviceContainer');
+            aboutBtn?.addEventListener('click', async () => {
+                aboutContainer.innerHTML = '<p><i class="fas fa-spinner fa-pulse"></i> Cargando especificaciones del dispositivo...</p>';
+                const specs = await getDeviceSpecs();
+                aboutContainer.innerHTML = `
+                    <ul class="specs-list">
+                        <li><i class="fas fa-microchip"></i> <strong>Núcleos CPU:</strong> ${specs.cores}</li>
+                        <li><i class="fas fa-memory"></i> <strong>RAM:</strong> ${specs.ram}</li>
+                        <li><i class="fas fa-hdd"></i> <strong>Almacenamiento:</strong> ${specs.storageInfo}</li>
+                        <li><i class="fas fa-globe"></i> <strong>IP pública:</strong> ${specs.ip}</li>
+                        <li><i class="fas fa-wifi"></i> <strong>Red:</strong> ${specs.networkType}</li>
+                        <li><i class="fas fa-mobile-alt"></i> <strong>Plataforma:</strong> ${specs.platform}</li>
+                        <li><i class="fas fa-building"></i> <strong>Vendedor:</strong> ${specs.vendor}</li>
+                        <li><i class="fas fa-language"></i> <strong>Idioma:</strong> ${specs.language}</li>
+                    </ul>
+                `;
+            });
+            return;
+        }
+        if(id === 'weather') {
+            if(!isOnline()) { appContent.innerHTML = `<div class="offline-msg"><i class="fas fa-wifi-slash"></i><p>Sin conexión. Activa el WiFi.</p></div>`; return; }
+            appContent.innerHTML = `<div style="text-align:center"><i class="fas fa-sun" style="font-size:70px;"></i><h2>24°C</h2><p>Soleado</p><p>Madrid, España</p></div>`;
+        }
+        else if(id === 'maps') {
+            if(!isOnline()) { appContent.innerHTML = `<div class="offline-msg"><i class="fas fa-wifi-slash"></i><p>Sin conexión.</p></div>`; return; }
+            appContent.innerHTML = `<iframe width="100%" height="300" style="border-radius:36px" src="https://maps.google.com/maps?q=Madrid&t=&z=12&output=embed"></iframe>`;
+        }
+        else if(id === 'music') {
+            if(!isOnline()) { appContent.innerHTML = `<div class="offline-msg"><i class="fas fa-wifi-slash"></i><p>Sin conexión.</p></div>`; return; }
+            appContent.innerHTML = `<audio controls style="width:100%"><source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio><p>Demo de streaming</p>`;
+        }
+        else if(id === 'files') {
+            appContent.innerHTML = `<div><h3><i class="fas fa-folder-open"></i> Archivos</h3><ul id="fileList"></ul><button id="newFileBtn"><i class="fas fa-plus"></i> Nuevo archivo</button></div>`;
+            const refresh=()=>{ const list=document.getElementById('fileList'); if(list) list.innerHTML=filesData.map(f=>`<li class="file-item"><i class="fas fa-file"></i> ${f.name}<button class="delFile" data-name="${f.name}">🗑️</button></li>`).join('');
+            document.querySelectorAll('.delFile').forEach(btn=>btn.addEventListener('click',()=>{filesData=filesData.filter(f=>f.name!==btn.dataset.name);saveState();refresh();}));};
+            refresh(); document.getElementById('newFileBtn')?.addEventListener('click',()=>{let n=prompt("Nombre del archivo");if(n){filesData.push({name:n});saveState();refresh();}});
+        }
+        else if(id === 'notes') {
+            appContent.innerHTML = `<div><button id="newNote"><i class="fas fa-plus"></i> Nueva nota</button><div id="notesList"></div></div>`;
+            const renderNotes=()=>{const cont=document.getElementById('notesList');if(cont) cont.innerHTML=notesData.map(n=>`<div class="note-item"><b>${n.title}</b><p>${n.content}</p><button class="editNote" data-id="${n.id}">Editar</button><button class="delNote" data-id="${n.id}">Borrar</button></div>`).join('');
+            document.querySelectorAll('.editNote').forEach(btn=>btn.addEventListener('click',()=>{let note=notesData.find(n=>n.id===btn.dataset.id);let newT=prompt("Título",note.title);if(newT)note.title=newT;let newC=prompt("Contenido",note.content);if(newC!==null)note.content=newC;saveState();renderNotes();}));
+            document.querySelectorAll('.delNote').forEach(btn=>btn.addEventListener('click',()=>{notesData=notesData.filter(n=>n.id!==btn.dataset.id);saveState();renderNotes();}));};
+            renderNotes(); document.getElementById('newNote')?.addEventListener('click',()=>{notesData.push({id:Date.now().toString(),title:"Nueva nota",content:"..."});saveState();renderNotes();});
+        }
+        else if(id === 'gallery') {
+            appContent.innerHTML = `<div class="grid-gallery" id="galleryGrid"></div><input type="file" id="addImage" accept="image/*"><button id="refreshGal"><i class="fas fa-sync-alt"></i> Actualizar</button>`;
+            const renderGal=()=>{const grid=document.getElementById('galleryGrid');if(grid) grid.innerHTML=galleryImages.map(img=>`<div><img src="${img}" style="border-radius:24px; width:100%; aspect-ratio:1; object-fit:cover;"></div>`).join('')||'<p>Sube imágenes desde tu dispositivo</p>';};
+            renderGal(); document.getElementById('addImage')?.addEventListener('change',e=>{const file=e.target.files[0];if(file){const reader=new FileReader();reader.onload=ev=>{galleryImages.push(ev.target.result);saveState();renderGal();};reader.readAsDataURL(file);}});
+            document.getElementById('refreshGal')?.addEventListener('click',renderGal);
+        }
+        else if(id === 'calc') {
+            appContent.innerHTML = `<div><input id="calcDisplay" disabled style="width:100%;padding:18px;background:rgba(255,255,255,0.2);border-radius:40px;text-align:right;font-size:24px;"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;"><button>7</button><button>8</button><button>9</button><button>/</button><button>4</button><button>5</button><button>6</button><button>*</button><button>1</button><button>2</button><button>3</button><button>-</button><button>0</button><button>C</button><button>=</button><button>+</button></div></div>`;
+            let expr=''; const display=document.getElementById('calcDisplay'); const btns=appContent.querySelectorAll('button');
+            btns.forEach(btn=>btn.addEventListener('click',()=>{let val=btn.innerText;if(val==='C')expr='';else if(val==='='){try{expr=eval(expr).toString();}catch(e){expr='Error';}}else expr+=val;display.value=expr;}));
+        }
+        else if(id === 'terminal') {
+            appContent.innerHTML = `<div style="background:#000000aa; backdrop-filter:blur(18px); border-radius:32px; padding:16px; font-family:monospace;"><div id="termOut">$ Terminal OS v1.0<br>Escribe 'help' para comandos.<br></div><input id="termIn" style="width:100%; background:transparent; border:none; color:#0f0; outline:none; font-family:monospace;"></div>`;
+            const out=document.getElementById('termOut'); const inp=document.getElementById('termIn');
+            inp?.addEventListener('keypress',e=>{if(e.key==='Enter'){const cmd=inp.value;out.innerHTML+=`<br>$ ${cmd}`;if(cmd==='help')out.innerHTML+=`<br>Comandos: help, date, echo, wifi, clear, specs`;else if(cmd.startsWith('echo'))out.innerHTML+=`<br>${cmd.slice(5)}`;else if(cmd==='date')out.innerHTML+=`<br>${new Date()}`;else if(cmd==='clear')out.innerHTML='$ Terminal<br>';else if(cmd==='wifi')out.innerHTML+=`<br>WiFi ${isOnline() ? 'conectado' : 'desconectado'}`;else if(cmd==='specs'){getDeviceSpecs().then(s=>out.innerHTML+=`<br>RAM: ${s.ram} | CPU: ${s.cores} | Almacenamiento: ${s.storageInfo}`);}else out.innerHTML+=`<br>Comando no reconocido: ${cmd}`;inp.value='';out.scrollTop=out.scrollHeight;}});
+        }
+        else {
+            const simpleContent = { contacts:'<div><i class="fas fa-user-circle"></i> Godeanos<br><i class="fas fa-user"></i> iOS Fan<br><i class="fas fa-envelope"></i> contacto@solaraos.com</div>', camera:'<div style="text-align:center"><i class="fas fa-camera" style="font-size:70px;"></i><button id="fakeCapture">Capturar foto simulada</button><div id="photoPreview"></div></div>', clock:'<div style="text-align:center"><h1 id="liveClock" style="font-size: 48px;"></h1><p>Alarma y temporizador (demo)</p></div>' }[id];
+            appContent.innerHTML = simpleContent || '<p>App en desarrollo</p>';
+            if(id === 'camera') document.getElementById('fakeCapture')?.addEventListener('click',()=>{document.getElementById('photoPreview').innerHTML=`<img src="https://picsum.photos/200/150?random=1" style="border-radius:28px; margin-top:12px;">`;});
+            if(id === 'clock') { const update=()=>{const el=document.getElementById('liveClock');if(el)el.innerText=new Date().toLocaleTimeString();}; update(); setInterval(update,1000); }
+        }
+    }
+
+    // Desbloqueo
+    let startY=0; const swipeArea=document.getElementById('swipeToUnlock');
+    function unlockAndProceed(){ lockScreen.classList.add('hidden'); loginScreen.classList.remove('hidden'); startY=null; cleanupMouse(); }
+    function cleanupMouse(){ document.removeEventListener('mousemove', handleMouseMove); document.removeEventListener('mouseup', handleMouseUp); startY=null; }
+    function handleTouchStart(e){startY=e.touches[0].clientY;}
+    function handleTouchMove(e){if(!startY)return; const diff=e.touches[0].clientY-startY; if(diff<-40) unlockAndProceed();}
+    function handleMouseDown(e){startY=e.clientY; document.addEventListener('mousemove', handleMouseMove); document.addEventListener('mouseup', handleMouseUp);}
+    function handleMouseMove(e){if(!startY)return; if(e.clientY-startY<-40) unlockAndProceed();}
+    function handleMouseUp(){cleanupMouse();}
+    swipeArea?.addEventListener('touchstart', handleTouchStart);
+    swipeArea?.addEventListener('touchmove', handleTouchMove);
+    swipeArea?.addEventListener('mousedown', handleMouseDown);
+    pcUnlockBtn.addEventListener('click', unlockAndProceed);
+
+    // Login
+    document.getElementById('doLogin').addEventListener('click', () => {
+        const user = document.getElementById('username').value, pass = document.getElementById('password').value;
+        if(user === 'Godeanos' && pass === '1234321') {
+            loginScreen.classList.add('hidden'); homeScreen.classList.remove('hidden'); renderHome();
+        } else { document.getElementById('loginError').innerText = "Credenciales incorrectas"; }
+    });
+
+    // Control Center
+    darkModeToggleSpan.addEventListener('click', () => { settings.darkMode = !settings.darkMode; applySettings(); saveState(); });
+    lockDeviceSpan.addEventListener('click', () => { closeControlCenter(); lockScreen.classList.remove('hidden'); loginScreen.classList.add('hidden'); homeScreen.classList.add('hidden'); updateClock(); });
+    wifiToggleSpan.addEventListener('click', () => { wifiEnabled = !wifiEnabled; updateWifiUI(); saveState(); });
+    brightnessSlider.addEventListener('input', (e) => { glassOverlay.style.opacity = 1 - (e.target.value / 100); });
+    document.getElementById('uploadWallpaper').addEventListener('change', (e) => { const file = e.target.files[0]; if(file) { const url = URL.createObjectURL(file); settings.wallpaper = url; applySettings(); saveState(); } });
+
+    // Inicio
+    loadState(); applySettings(); updateClock();
+    lockScreen.classList.remove('hidden');
+    loginScreen.classList.add('hidden');
+    homeScreen.classList.add('hidden');
+    updateWifiUI();
+</script>
+</body>
+</html>
