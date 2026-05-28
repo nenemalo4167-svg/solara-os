@@ -3,26 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Solara OS — Con navegador y música local</title>
+    <title>Solara OS — Con navegador, música local y hora fija</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* (El mismo CSS que antes, no cambia) */
+        /* RESET Y VARIABLES (igual que antes) */
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', system-ui, sans-serif; background: #000; overflow: hidden; height: 100vh; width: 100vw; --glass-bg: rgba(20, 20, 25, 0.55); --glass-border: rgba(255, 255, 255, 0.25); --dock-bg: rgba(30, 30, 35, 0.65); --text-primary: #ffffff; --text-secondary: #e0e0e5; --icon-size: 74px; --icon-radius: 24px; --transition-motion: 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1); }
         body.light { --glass-bg: rgba(245, 245, 250, 0.6); --glass-border: rgba(255, 255, 255, 0.5); --dock-bg: rgba(240, 240, 245, 0.7); --text-primary: #1c1c1e; --text-secondary: #6c6c70; }
-        @media (min-width: 1024px) { body { --icon-size: 88px; --icon-radius: 26px; } .icons-grid { gap: 32px 28px; max-width: 720px; } .dock-icon { width: 72px; height: 72px; font-size: 36px; } .time-large { font-size: 120px; } .date-large { font-size: 32px; } }
+        @media (min-width: 1024px) { body { --icon-size: 88px; --icon-radius: 26px; } .icons-grid { gap: 32px 28px; max-width: 720px; } .dock-icon { width: 72px; height: 72px; font-size: 36px; } }
         .wallpaper-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(145deg, #ffb347 0%, #ff6b6b 40%, #5f2c82 100%); background-size: cover; transition: background-image 0.5s ease; z-index: 0; }
         .glass-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; backdrop-filter: blur(28px); background: var(--glass-bg); z-index: 1; pointer-events: none; }
         .screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; transition: opacity var(--transition-motion), visibility var(--transition-motion); opacity: 1; visibility: visible; z-index: 10; overflow: hidden; }
         .screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-        .lock-container { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: white; text-shadow: 0 4px 20px rgba(0,0,0,0.5); backdrop-filter: blur(12px); }
-        .time-large { font-weight: 640; letter-spacing: -3px; margin-bottom: 12px; }
-        .date-large { font-weight: 500; opacity: 0.95; }
+
+        /* LOCK SCREEN - CORREGIDO (responsive con clamp) */
+        .lock-container { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: white; text-shadow: 0 4px 20px rgba(0,0,0,0.5); backdrop-filter: blur(12px); padding: 0 16px; text-align: center; }
+        .time-large { font-size: clamp(3rem, 15vw, 120px); font-weight: 640; letter-spacing: -2px; margin-bottom: 12px; line-height: 1.1; }
+        .date-large { font-size: clamp(1rem, 5vw, 32px); font-weight: 500; opacity: 0.95; }
         .swipe-area { position: absolute; bottom: 40px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 12px; cursor: grab; }
         .swipe-indicator { background: rgba(255,255,255,0.5); backdrop-filter: blur(12px); width: 140px; height: 5px; border-radius: 40px; }
         .swipe-text { font-size: 15px; font-weight: 500; background: rgba(0,0,0,0.4); padding: 8px 24px; border-radius: 60px; backdrop-filter: blur(15px); }
         .unlock-button-pc { margin-top: 30px; background: rgba(255,255,255,0.25); backdrop-filter: blur(20px); padding: 14px 32px; border-radius: 50px; font-size: 18px; font-weight: 600; cursor: pointer; border: 1px solid rgba(255,255,255,0.4); transition: 0.2s; }
         .unlock-button-pc:active { transform: scale(0.96); }
+
+        /* (El resto del CSS es idéntico al que ya tenías, lo omito por longitud pero está completo en la versión final) */
+        /* ... */
+        /* (Para no repetir, incluiré todo el CSS del código anterior, pero con las correcciones de hora) */
         .login-panel { position: relative; z-index: 3; background: var(--glass-bg); backdrop-filter: blur(40px); border-radius: 56px; padding: 36px 30px; width: 340px; margin: auto; top: 28%; border: 1px solid var(--glass-border); box-shadow: 0 30px 55px rgba(0,0,0,0.35); color: var(--text-primary); }
         .login-panel h2 { text-align: center; font-weight: 620; font-size: 28px; margin-bottom: 28px; }
         .input-group { margin: 18px 0; position: relative; }
@@ -80,7 +86,7 @@
         .specs-list { list-style: none; padding: 0; }
         .specs-list li { background: rgba(255,255,255,0.15); margin: 10px 0; padding: 12px; border-radius: 24px; display: flex; align-items: center; gap: 12px; }
         .music-list { margin-top: 16px; }
-        .music-item { background: rgba(255,255,255,0.15); border-radius: 30px; padding: 10px 16px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        .music-item { background: rgba(255,255,255,0.15); border-radius: 30px; padding: 10px 16px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
     </style>
 </head>
 <body>
@@ -133,7 +139,7 @@
 <div id="appModal" class="app-modal"><div class="app-card"><div class="app-header"><span id="appTitle">App</span><span class="close-app" id="closeAppBtn"><i class="fas fa-times"></i></span></div><div class="app-content" id="appContent"></div></div></div>
 
 <script>
-    // ---------- APPS (incluye navegador y música mejorada) ----------
+    // ---------- APPS (incluye navegador y música) ----------
     const APPS = [
         { id: "files", name: "Archivos", icon: "fas fa-folder-open" },
         { id: "notes", name: "Notas", icon: "fas fa-pen-fancy" },
@@ -154,16 +160,10 @@
     let notesData = [{ id: "1", title: "Bienvenida", content: "Solara OS con navegador y música local" }];
     let filesData = [{ name: "documento.pdf", content: "demo" }];
     let galleryImages = [];
-    let musicFiles = []; // cada elemento: { name, data (base64) }
+    let musicFiles = [];
 
-    // Cargar música guardada
-    function loadMusicFromStorage() {
-        const saved = localStorage.getItem('solara_music');
-        if(saved) musicFiles = JSON.parse(saved);
-    }
-    function saveMusicToStorage() {
-        localStorage.setItem('solara_music', JSON.stringify(musicFiles));
-    }
+    function loadMusicFromStorage() { const saved = localStorage.getItem('solara_music'); if(saved) musicFiles = JSON.parse(saved); }
+    function saveMusicToStorage() { localStorage.setItem('solara_music', JSON.stringify(musicFiles)); }
 
     // DOM
     const lockScreen = document.getElementById('lockScreen');
@@ -230,6 +230,8 @@
         else wallpaperLayer.style.backgroundImage = "linear-gradient(145deg, #ffb347 0%, #ff6b6b 40%, #5f2c82 100%)";
         glassOverlay.style.backgroundColor = settings.darkMode ? 'rgba(20,20,28,0.55)' : 'rgba(250,250,255,0.45)';
     }
+
+    // Reloj mejorado con visibilidad
     function updateClock() {
         const now = new Date();
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -238,7 +240,12 @@
         if(document.getElementById('lockDate')) document.getElementById('lockDate').innerText = dateStr;
         if(document.getElementById('homeTime')) document.getElementById('homeTime').innerText = timeStr;
     }
-    setInterval(updateClock, 1000);
+    // Actualizar cada segundo
+    let clockInterval = setInterval(updateClock, 1000);
+    // Forzar actualización cuando la pestaña se vuelve visible (evita desincronización)
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) updateClock();
+    });
     updateClock();
 
     function renderHome() {
@@ -284,7 +291,7 @@
     closeAppBtn.addEventListener('click', closeAppModal);
     appModal.addEventListener('click', (e) => { if(e.target === appModal) closeAppModal(); });
 
-    // Funciones de especificaciones (igual que antes)
+    // Especificaciones
     async function getDeviceSpecs() {
         const ram = navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'No detectable';
         const cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} núcleos` : 'No detectable';
@@ -311,20 +318,20 @@
         return { ram, cores, storageInfo, ip, networkType, platform, vendor, language };
     }
 
-    // ---------- RENDER DE APPS CON NUEVAS FUNCIONES ----------
+    // Render de cada app (incluye explicación en navegador)
     function renderAppContent(id) {
         if(id === 'browser') {
-            // Navegador que abre en nueva pestaña real (sin iframe problemático)
             appContent.innerHTML = `
                 <div style="text-align:center">
                     <i class="fab fa-chrome" style="font-size: 60px;"></i>
                     <h3>Navegador web</h3>
-                    <p>Escribe una URL y se abrirá en una nueva pestaña de tu navegador real.</p>
+                    <p>Este navegador abre las páginas en una <strong>nueva pestaña de tu navegador real</strong> (Chrome, Safari, Edge).</p>
+                    <p>🔒 <strong>Modo incógnito:</strong> No se guarda historial dentro de este sistema operativo. Sin embargo, el navegador externo podría almacenar datos si no usas su modo incógnito.</p>
                     <div style="display: flex; gap: 10px; margin-top: 20px;">
                         <input type="text" id="browserUrl" placeholder="https://www.google.com" style="flex:1; background: rgba(255,255,255,0.2); border: none; border-radius: 30px; padding: 12px; color: white;">
                         <button id="openBrowserBtn">Abrir <i class="fas fa-external-link-alt"></i></button>
                     </div>
-                    <p style="margin-top: 20px; font-size: 12px; opacity:0.7;">Modo incógnito: no se guarda historial en el sistema.</p>
+                    <p style="margin-top: 20px; font-size: 12px; opacity:0.7;">💡 Para una experiencia completamente privada, abre tu navegador real en modo incógnito desde el menú.</p>
                 </div>
             `;
             const input = document.getElementById('browserUrl');
@@ -340,10 +347,10 @@
             return;
         }
         if(id === 'music') {
-            // Música con subida local de MP3
             appContent.innerHTML = `
                 <div>
                     <h3><i class="fas fa-music"></i> Biblioteca local</h3>
+                    <p>Sube archivos MP3 desde tu dispositivo. Se guardarán en este navegador.</p>
                     <input type="file" id="uploadMp3" accept="audio/mpeg" style="margin: 10px 0;">
                     <button id="refreshMusicList"><i class="fas fa-sync-alt"></i> Actualizar lista</button>
                     <div id="musicListContainer" class="music-list"></div>
@@ -369,15 +376,13 @@
                     `;
                 });
                 container.innerHTML = html;
-                // Eventos de reproducción
                 document.querySelectorAll('.playMusicBtn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         const idx = parseInt(btn.getAttribute('data-idx'));
                         const song = musicFiles[idx];
                         if(song && song.data) {
                             const audio = new Audio(song.data);
-                            audio.play().catch(err => alert('No se pudo reproducir el audio: ' + err.message));
-                            // Pequeño reproductor flotante opcional: se podría mostrar notificación, pero por simplicidad solo se reproduce.
+                            audio.play().catch(err => alert('No se pudo reproducir: ' + err.message));
                         }
                     });
                 });
@@ -403,7 +408,7 @@
                     };
                     reader.readAsDataURL(file);
                 } else {
-                    alert('Por favor selecciona un archivo MP3 válido.');
+                    alert('Selecciona un archivo MP3 válido.');
                 }
                 uploadInput.value = '';
             });
@@ -444,7 +449,7 @@
             });
             return;
         }
-        // El resto de apps (weather, maps, files, notes, gallery, calc, terminal, contacts, camera, clock) igual que antes
+        // Resto de apps (weather, maps, files, notes, gallery, calc, terminal, contacts, camera, clock)
         if(id === 'weather') {
             if(!isOnline()) { appContent.innerHTML = `<div class="offline-msg"><i class="fas fa-wifi-slash"></i><p>Sin conexión. Activa el WiFi.</p></div>`; return; }
             appContent.innerHTML = `<div style="text-align:center"><i class="fas fa-sun" style="font-size:70px;"></i><h2>24°C</h2><p>Soleado</p><p>Madrid, España</p></div>`;
